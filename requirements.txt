@@ -1,0 +1,3 @@
+Flask
+bravado-core
+attrs

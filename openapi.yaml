@@ -1,0 +1,57 @@
+swagger: "2.0"
+info:
+  version: 1.0.0
+  title: Libarary
+  license:
+    name: MIT
+host: library.example.com
+basePath: /
+schemes:
+  - http
+  - https
+consumes:
+  - application/json
+produces:
+  - application/json
+paths:
+  /books/{book_id}:
+    parameters:
+      - name: book_id
+        in: path
+        required: true
+        description: id of book
+        type: integer
+    get:
+      responses:
+        "200":
+          description: Book was retrieved successfully
+          schema:
+            $ref: '#/definitions/Book'
+    put:
+      parameters:
+        - name: params
+          in: body
+          required: true
+          schema:
+            $ref: '#/definitions/Book'
+      responses:
+        "200":
+          description: Book was updated successfully
+          schema:
+            $ref: '#/definitions/Book'
+    delete:
+      responses:
+        "204":
+            description: Book was deleted successfully
+
+definitions:
+  Book:
+    type: object
+    required: [id, title, published_year]
+    properties:
+      id:
+        type: integer
+      title:
+        type: string
+      published_year:
+        type: integer
