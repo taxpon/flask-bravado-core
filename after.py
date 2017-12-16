@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Callable
 from functools import wraps
 import attr
 from flask import Flask, request, jsonify
@@ -10,38 +10,34 @@ from bravado_core.request import IncomingRequest
 from bravado_core.request import unmarshal_request
 
 
-class OpenApiError(Exception):
+class OpenAPIError(Exception):
     pass
 
 
-class OpenApi:
-    """To use function in this class, subclass need to be created for its usage."""
-
-    def __init__(self, doc_path: str, config: dict =None):
+class OpenAPI:
+    def __init__(self, doc_path: str, config: dict = None) -> None:
         with open(doc_path, "r") as fp:
             self._raw_spec: dict = yaml.load(fp)
         self.spec: Spec = Spec.from_dict(self._raw_spec, config=config)
 
-    def unmarshal_request(self):
-        # type: (bool) -> dict
+    def unmarshal_request(self) -> dict:
         b_req = BravadoRequest(self)
         operation = self.spec.get_op_for_request(request.method.lower(), b_req.endpoint())
         if not operation:
-            raise OpenApiError('Failed to find proper operation b_req.method = {}, b_req.endpoint = {}'.format(
-                b_req.method(), b_req.endpoint()
+            raise OpenAPIError('Failed to find proper operation method = {}, endpoint = {}'.format(
+                request.method.lower(), b_req.endpoint()
             ))
         return unmarshal_request(b_req, operation)
 
 
 class BravadoRequest(IncomingRequest):
-
-    def __init__(self, openapi: OpenApi):
-        self.openapi: OpenApi = openapi
+    def __init__(self, openapi: OpenAPI) -> None:
+        self.openapi: OpenAPI = openapi
 
     def endpoint(self) -> str:
         import re
         flask_path: str = str(request.url_rule)
-        spec_path_pattern = re.sub(r'<[^/]*>', '{[^/]*}', flask_path)
+        spec_path_pattern = re.sub(r'<(?:[a-z]+:)?(\w+)>', r'{\1}', flask_path)
 
         if self.openapi.spec._request_to_op_map is None:
             self.openapi.spec.get_op_for_request("get", "")
@@ -89,7 +85,7 @@ Books: Dict[int, Book] = {
 
 
 @app.errorhandler(ValidationError)
-def validation_error(e):
+def validation_error(e: ValidationError):
     app.logger.exception(e)
     return jsonify(error=400, text="Bad request"), 400
 
@@ -97,14 +93,15 @@ def validation_error(e):
 def extract_params(func):
     @wraps(func)
     def wrapped(*args, **kwargs):
-        openapi = OpenApi('openapi.yaml')
+        openapi = OpenAPI('openapi.yaml')
         client_req = openapi.unmarshal_request()
         kwargs.update(client_req)
         return func(*args, **kwargs)
+
     return wrapped
 
 
-@app.route('/books/<book_id>', methods=['GET', 'PUT', 'DELETE'])
+@app.route('/books/<int:book_id>', methods=['GET', 'PUT', 'DELETE'])
 @extract_params
 def book(book_id: int, params: dict = None):
     target = Books.get(book_id)
@@ -117,6 +114,9 @@ def book(book_id: int, params: dict = None):
         return jsonify(resp)
 
     elif request.method == 'PUT':
+        if book_id != params['id']:
+            return jsonify(error=400, text="Bad request"), 400
+
         target.title = params['title']
         target.published_year = params['published_year']
 

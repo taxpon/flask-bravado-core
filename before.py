@@ -18,9 +18,8 @@ Books: Dict[int, Book] = {
 }
 
 
-@app.route('/books/<book_id>', methods=['GET', 'PUT', 'DELETE'])
-def book(book_id: str):
-    book_id = int(book_id)
+@app.route('/books/<int:book_id>', methods=['GET', 'PUT', 'DELETE'])
+def book(book_id: int):
     target = Books.get(book_id)
     if not target:
         return jsonify(error=404, text="No book with book_id: {}".format(book_id)), 404
@@ -44,6 +43,9 @@ def book(book_id: str):
             return jsonify(error=400, text="Bad request"), 400
 
         if not isinstance(req['published_year'], int):
+            return jsonify(error=400, text="Bad request"), 400
+
+        if book_id != req['id']:
             return jsonify(error=400, text="Bad request"), 400
 
         target.title = req['title']
